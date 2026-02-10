@@ -1319,6 +1319,10 @@ class App:
                         f.write(f"{i+1}. [❗素材不足警告] 客户: {rec.get('client')}\n")
                         f.write(f"   路径: {rec.get('path')}\n")
                         f.write(f"   素材数: {rec.get('video_count')} | 模版需要: {rec.get('target_count')}\n\n")
+                    elif rec.get("type") == "generation_failed":
+                        f.write(f"{i+1}. [❌ 生成失败/超时] 客户: {rec.get('client')}\n")
+                        f.write(f"   草稿: {rec.get('draft')}\n")
+                        f.write(f"   路径: {rec.get('path')}\n\n")
                     else:
                         f.write(f"{i+1}. [📹 时长不足] 客户: {rec.get('client', '未知')}\n")
                         f.write(f"   文件: {rec.get('file', '未知')}\n")
@@ -1423,6 +1427,31 @@ class App:
             "video_count": video_count,
             "target_count": target_count
         })
+        self.reshoot_count_var.set(f"共 {len(self.reshoot_records)} 条补拍记录")
+        self._save_reshoot_history()
+
+    def add_generation_failed_warning(self, client_name: str, folder_path: str, draft_name: str):
+        """添加任务生产/导出失败的记录"""
+        self.reshoot_text.configure(state="normal")
+        self.reshoot_text.insert("end", f"\n{'!'*40}\n")
+        self.reshoot_text.insert("end", f"❌ 生产失败/超时: {client_name}\n")
+        self.reshoot_text.insert("end", f"   🎬 草稿名称: {draft_name}\n")
+        self.reshoot_text.insert("end", "   📂 路径: ")
+        ps = self.reshoot_text.index("end-1c")
+        self.reshoot_text.insert("end", f"{folder_path}\n")
+        pe = self.reshoot_text.index("end-1c")
+        self.reshoot_text.tag_add("path_link", ps, pe)
+        self.reshoot_text.tag_add(f"path:{folder_path}", ps, pe)
+        self.reshoot_text.insert("end", f"{'!'*40}\n")
+        
+        self.reshoot_records.append({
+            "type": "generation_failed",
+            "client": client_name,
+            "path": folder_path,
+            "draft": draft_name
+        })
+        self.reshoot_text.see("end")
+        self.reshoot_text.configure(state="disabled")
         self.reshoot_count_var.set(f"共 {len(self.reshoot_records)} 条补拍记录")
         self._save_reshoot_history()
 
@@ -2061,7 +2090,8 @@ class App:
                         if success:
                             self.log(f"✅ Quicker 交付成功! 文件已保存至:\n   {os.path.abspath(final_dest_file)}")
                         else:
-                            self.log(f"❌ Quicker 导出失败或超时。")
+                            self.log(f"❌ Quicker 导出失败或超时。已记录到补拍报告。")
+                            self.add_generation_failed_warning(client_name, folder, project_name)
                     else:
                         captured_path = exporter.run_export(project_name)
                         if captured_path and os.path.exists(captured_path):
@@ -2080,7 +2110,7 @@ class App:
                             exporter.kill_jianying()
                     except: pass
 
-    def _run_export_via_quicker(self, action_id, draft_name, save_path, timeout=900):
+    def _run_export_via_quicker(self, action_id, draft_name, save_path, timeout=180):
         """
         通过 Quicker 外部动作接手导出逻辑
         参数格式: 草稿名|保存路径
