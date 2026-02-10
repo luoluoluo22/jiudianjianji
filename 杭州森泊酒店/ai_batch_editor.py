@@ -285,19 +285,61 @@ class AIVideoEditor:
             print(f"[*] AI 原始分析结果: {clean_content}")
             
             ai_data = json.loads(clean_content)
-            if isinstance(ai_data, dict):
-                results = ai_data.get("segments", [])
-            else:
-                results = ai_data # 兼容
+            results = ai_data.get("segments", []) if isinstance(ai_data, dict) else ai_data
             
             if not isinstance(results, list):
                 raise ValueError("AI 返回格式非预期 JSON 结构")
             
-            # 补齐数量 (如果 AI 少给了)
+            # 1. 预解析时长并转换为 float
+            for res in results:
+                res["duration"] = self.parse_time_to_seconds(res.get("duration", "0"))
+                res["start"] = self.parse_time_to_seconds(res.get("start", "0"))
+
+            # 2. 补齐数量 (如果 AI 少给了)
             while len(results) < target_count:
-                results.append({"file_name": os.path.basename(video_paths[0]), "start": "0s", "reason": "补齐段落"})
+                results.append({"file_name": os.path.basename(video_paths[0]), "start": 0.0, "duration": 0.0, "reason": "补齐段落"})
             
-            # 建立有序列表用于索引匹配 (根据传入顺序)
+            # 3. 动态时长调整逻辑 (确保数学总和精确等于目标 total_duration)
+            sum_proposed = sum(r.get("duration", 0) for r in results[:target_count])
+            diff = total_duration - sum_proposed
+
+            if abs(diff) > 0.01:
+                print(f"[*] AI 返回总时长 ({sum_proposed:.2f}s) 与目标 ({total_duration:.2f}s) 不符，正在动态调整 (差异: {diff:+.2f}s)...")
+                if diff > 0:
+                    # 时长不够：从后往前补 (用户要求：从后往前多截取一点)
+                    remaining_to_add = diff
+                    for res in reversed(results[:target_count]):
+                        if remaining_to_add <= 0: break
+                        fname = str(res.get("file_name", "")).lower()
+                        # 获取该视频的总时长
+                        total_dur = video_durations.get(fname, 999.0)
+                        
+                        # 计算当前能额外增加的最大值 (满足 0.5s 缓冲)
+                        max_can_add = total_dur - 0.5 - (res["start"] + res["duration"])
+                        add_this = min(remaining_to_add, max(0, max_can_add))
+                        
+                        if add_this > 0:
+                            res["duration"] = round(res["duration"] + add_this, 2)
+                            remaining_to_add -= add_this
+                            print(f"   - 段落补时: {fname} 增加了 {add_this:.2f}s")
+                    
+                    # 如果所有素材都补满了还没够，强行加在最后一段（会触发后续的补拍提醒）
+                    if remaining_to_add > 0.01:
+                        results[target_count-1]["duration"] = round(results[target_count-1]["duration"] + remaining_to_add, 2)
+                        print(f"   - [!] 素材物理时长已达上限，强制补入最后一段: {remaining_to_add:.2f}s (用于对齐模版)")
+                else:
+                    # 时长多了：平均扣减 (用户要求：平均每段素材少一点)
+                    reduction = abs(diff) / target_count
+                    for res in results[:target_count]:
+                        actual_red = min(reduction, res["duration"] - 0.1) if res["duration"] > 0.1 else 0
+                        res["duration"] = round(res["duration"] - actual_red, 2)
+                    
+                    # 残差补偿给第一段（确保最终和完全等于目标）
+                    current_sum = sum(r["duration"] for r in results[:target_count])
+                    residual = total_duration - current_sum
+                    results[0]["duration"] = round(results[0]["duration"] + residual, 2)
+
+            # 4. 建立有序列表用于索引匹配
             ordered_paths = video_paths 
             
             print("[*] AI 选片路径调试信息:")

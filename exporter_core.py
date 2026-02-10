@@ -73,7 +73,7 @@ class Exporter:
                         subprocess.Popen(self.jianying_exe_path)
                         # 给启动留出时间
                         for i in range(15):
-                            time.sleep(2)
+                            time.sleep(5) # 2s -> 5s: 增加启动初始缓冲
                             self.log(f"   [!] 等待剪映启动并就绪 (第 {i+1} 轮)...")
                             self.window = uia.WindowControl(searchDepth=1, Name='剪映专业版')
                             if self.window.Exists(0): break
@@ -120,7 +120,7 @@ class Exporter:
         else:
             self.window.SendKeys('{Esc}')
         
-        time.sleep(2)
+        time.sleep(5) # 2s -> 5s: 增加切换页面后的稳定时间
         self.connect()
         if not self.is_home_page():
             raise Exception("无法返回首页")
@@ -193,7 +193,7 @@ class Exporter:
                 self.connect(retry=False)
                 if self.is_edit_page():
                     self.log(f"[*] 成功进入编辑页 (耗时 {i+1}s)。")
-                    time.sleep(2)
+                    time.sleep(5) # 2s -> 5s: 给编辑页 UI 渲染留出更多时间
                     return
             except: continue
         raise Exception("打开草稿超时")
@@ -218,7 +218,7 @@ class Exporter:
             
         self.log("[*] 点击【导出】对话框...")
         export_btn.Click(simulateMove=False)
-        time.sleep(1.5)
+        time.sleep(4.5) # 1.5s -> 4.5s: 增加导出对话框弹出的等待
         self.connect(retry=False) 
         
         # 2. 嗅探真实路径 (移除分辨率设置动作以提高稳定性)
@@ -248,8 +248,8 @@ class Exporter:
         self.log("[*] 导出编码启动，进入监控阶段...")
         start_time = time.time()
         
-        # 初始避让：等待 5 秒让剪映进入稳定渲染状态，之后再开始轮询
-        time.sleep(5)
+        # 初始避让：等待 8 秒让剪映进入稳定渲染状态 (5s -> 8s)
+        time.sleep(8)
 
         while time.time() - start_time < timeout:
             try:
@@ -274,7 +274,7 @@ class Exporter:
             except:
                 pass # 忽略轮询期间的 UI 通信波动
             
-            time.sleep(4) # 适中的轮询频率
+            time.sleep(7) # 适中的轮询频率 (4s -> 7s)
             
         raise Exception("导出超时")
 
