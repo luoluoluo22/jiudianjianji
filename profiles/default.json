@@ -1,0 +1,36 @@
+{
+    "last_source_dir": "F:/Desktop/\u676d\u5dde\u68ee\u6cca\u9152\u5e97/\u676d\u5dde\u5f00\u5143\u68ee\u6cca\u7d20\u6750/0128/\u963f\u742a5\u53555\u6761/20260128\u9ec4\u831c20s",
+    "last_output_dir": "F:/Desktop",
+    "jianying_exe_path": "C:\\Program Files\\JianyingPro\\5.9.0.11632\\JianyingPro.exe",
+    "api_key": "YOUR_API_KEY_HERE",
+    "base_url": "https://oneapi.luocut.asia/v1",
+    "default_chat_model": "gemini-3-flash",
+    "ai_prompt": "\u8bf7\u4ece\u8fd9\u4e9b\u89c6\u9891\u4e2d\u6311\u9009\u51fa\u6b63\u597d 4 \u4e2a\u6700\u9002\u5408\u8425\u9500\u7684 3s \u7247\u6bb5\uff1a{video_list}\u3002\n\u8981\u6c42\uff1a\u907f\u5f00\u8d77\u6b65\u9759\u6b62\u3002\u6311\u9009\u4eba\u7269\u8fdb\u884c\u4e2d\u7684\u7247\u6bb5\uff0c\u6bd4\u5982\u6b63\u5728\u4e0b\u697c\uff0c\u6b63\u5728\u5f80\u524d\u8d70\uff0c\u6b63\u5728\u5fae\u7b11\u7b49\uff0c\u907f\u514d\u5f55\u5236\u524d\u7684\u9759\u6b62\u4e0d\u52a8\u753b\u9762\u3002",
+    "window_geometry": "1000x750+0+0",
+    "templates_root": "C:/Users/Administrator/AppData/Local/JianyingPro/User Data/Projects/com.lveditor.draft",
+    "name_format": "%Y%m%d-{name}",
+    "folder_format": "\u676d\u5dde\u5f00\u5143\u68ee\u6cca\u2014\u2014%Y%m%d",
+    "draft_name_format": "%Y%m%d-{name}_{template}",
+    "is_batch_mode": false,
+    "last_batch_root": "F:/Desktop/\u676d\u5dde\u68ee\u6cca\u9152\u5e97/\u676d\u5dde\u5f00\u5143\u68ee\u6cca\u7d20\u6750/0128",
+    "last_templates": [
+        "\u676d\u5dde\u5f00\u5143\u68ee\u6cca20S"
+    ],
+    "last_template": "\u676d\u5dde\u5f00\u5143\u68ee\u6cca20S",
+    "templates_selections": {
+        "AI\u751f\u4ea7-\u9648\u6851\u6851-\u4ea4\u4ed8\u7248": [
+            "CF0C6A21-221F-4128-90D7-52C2F2F7C3A5",
+            "8A563142-7518-43c9-BB89-98B2DF12AA6D",
+            "807D8FED-C0E8-4b2b-B488-3B45FC9B5025"
+        ],
+        "\u676d\u5dde\u5f00\u5143\u68ee\u6cca20S": [
+            "CF0C6A21-221F-4128-90D7-52C2F2F7C3A5",
+            "8A563142-7518-43c9-BB89-98B2DF12AA6D",
+            "807D8FED-C0E8-4b2b-B488-3B45FC9B5025",
+            "FA7342AA-3E68-4936-BE99-467F2014B99B"
+        ],
+        "\u6211\u7684\u7b80\u5355\u526a\u8f91": [
+            "2c9042df02a84a318b698946753afe3e"
+        ]
+    }
+}

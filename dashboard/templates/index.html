@@ -1,0 +1,975 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>JianYing Insight | 自动化监视器</title>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Outfit:wght@400;700&display=swap"
+        rel="stylesheet">
+    <style>
+        :root {
+            --bg-color: #0b0e14;
+            --panel-bg: rgba(23, 28, 38, 0.7);
+            --accent-color: #7c4dff;
+            --secondary-accent: #00e5ff;
+            --text-primary: #ffffff;
+            --text-secondary: #94a3b8;
+            --success: #00e676;
+            --error: #ff5252;
+            --border: rgba(255, 255, 255, 0.1);
+            --glass-blur: blur(12px);
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Inter', sans-serif;
+            background-color: var(--bg-color);
+            color: var(--text-primary);
+            height: 100vh;
+            overflow: hidden;
+            display: flex;
+            background-image:
+                radial-gradient(circle at 0% 0%, rgba(124, 77, 255, 0.15) 0%, transparent 40%),
+                radial-gradient(circle at 100% 100%, rgba(0, 229, 255, 0.1) 0%, transparent 40%);
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 300px;
+            background: var(--panel-bg);
+            backdrop-filter: var(--glass-blur);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            z-index: 10;
+        }
+
+        .sidebar-header {
+            padding: 24px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .logo {
+            font-family: 'Outfit', sans-serif;
+            font-size: 22px;
+            font-weight: 700;
+            background: linear-gradient(to right, var(--accent-color), var(--secondary-accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            letter-spacing: -0.5px;
+        }
+
+        .project-list {
+            flex: 1;
+            overflow-y: auto;
+            padding: 12px;
+        }
+
+        .sidebar-footer {
+            padding: 20px;
+            border-top: 1px solid var(--border);
+        }
+
+        .btn-exit {
+            width: 100%;
+            background: rgba(255, 82, 82, 0.1);
+            color: var(--error);
+            border: 1px solid rgba(255, 82, 82, 0.2);
+            padding: 12px;
+            border-radius: 12px;
+            cursor: pointer;
+            font-weight: 600;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            gap: 8px;
+            transition: all 0.3s;
+        }
+
+        .btn-exit:hover {
+            background: var(--error);
+            color: white;
+        }
+
+        .project-item {
+            padding: 16px;
+            border-radius: 12px;
+            margin-bottom: 8px;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            border: 1px solid transparent;
+        }
+
+        .project-item:hover {
+            background: rgba(255, 255, 255, 0.05);
+            border-color: rgba(255, 255, 255, 0.1);
+        }
+
+        .project-item.active {
+            background: rgba(124, 77, 255, 0.2);
+            border-color: var(--accent-color);
+        }
+
+        .project-name {
+            font-weight: 600;
+            margin-bottom: 4px;
+        }
+
+        .project-meta {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        /* 布局重构 */
+        .content-layout {
+            flex: 1;
+            display: grid;
+            grid-template-columns: 1fr 320px;
+            gap: 20px;
+            padding: 20px;
+            overflow: hidden;
+        }
+
+        /* 中间：监视器区域 */
+        .monitor-area {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            overflow: hidden;
+        }
+
+        .player-section {
+            background: rgba(0, 0, 0, 0.4);
+            border-radius: 24px;
+            border: 1px solid var(--border);
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            flex-shrink: 0;
+        }
+
+        .player-card {
+            background: #000;
+            border-radius: 16px;
+            aspect-ratio: 16/9;
+            max-height: 450px;
+            margin: 0 auto;
+            width: 100%;
+            overflow: hidden;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            position: relative;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        #previewVideo,
+        #previewImage {
+            max-width: 100%;
+            max-height: 100%;
+            display: none;
+        }
+
+        .player-placeholder {
+            color: var(--text-secondary);
+            font-size: 14px;
+        }
+
+        /* 右侧：状态面板 */
+        .info-side {
+            display: flex;
+            flex-direction: column;
+            gap: 20px;
+            overflow-y: auto;
+            padding-right: 5px;
+        }
+
+        /* 统计卡片调整为垂直排列 */
+        .stats-vertical {
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+        }
+
+        .stats-vertical .card {
+            padding: 15px 20px;
+        }
+
+        .card {
+            background: var(--panel-bg);
+            backdrop-filter: var(--glass-blur);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 24px;
+            transition: transform 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+        }
+
+        .card-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        .card-value {
+            font-size: 28px;
+            font-weight: 700;
+            margin-top: 8px;
+            font-family: 'Outfit', sans-serif;
+        }
+
+        /* 时间轴容器 */
+        .timeline-container {
+            flex: 1;
+            background: rgba(15, 15, 25, 0.4);
+            border-radius: 24px;
+            border: 1px solid var(--border);
+            padding: 24px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .section-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 24px;
+        }
+
+        .btn {
+            background: var(--accent-color);
+            color: white;
+            border: none;
+            padding: 10px 20px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+            transition: all 0.2s;
+        }
+
+        .btn:hover {
+            background: #6e40ef;
+            box-shadow: 0 0 20px rgba(124, 77, 255, 0.4);
+        }
+
+        /* Actual Timeline Visualization */
+        .timeline-visual {
+            flex: 1;
+            overflow-x: auto;
+            overflow-y: auto;
+            position: relative;
+            padding-top: 10px;
+        }
+
+        .track-row {
+            height: 60px;
+            margin-bottom: 16px;
+            background: rgba(255, 255, 255, 0.03);
+            border-radius: 12px;
+            position: relative;
+            display: flex;
+            align-items: center;
+            padding: 0 10px;
+        }
+
+        .track-label {
+            position: absolute;
+            left: -15px;
+            top: -10px;
+            font-size: 10px;
+            color: var(--text-secondary);
+            background: var(--bg-color);
+            padding: 2px 8px;
+            border-radius: 4px;
+            z-index: 5;
+        }
+
+        .segment {
+            position: absolute;
+            height: 40px;
+            border-radius: 8px;
+            background: linear-gradient(90deg, #6c63ff, #8a2be2);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 11px;
+            overflow: hidden;
+            white-space: nowrap;
+            text-overflow: ellipsis;
+            padding: 0 8px;
+            cursor: help;
+            transition: filter 0.2s;
+        }
+
+        .segment:hover {
+            filter: brightness(1.2);
+        }
+
+        .segment.effect {
+            background: linear-gradient(90deg, #ffab00, #ff6f00);
+            border-color: rgba(255, 255, 255, 0.4);
+        }
+
+        .segment.missing {
+            background: linear-gradient(90deg, #ff5252, #d50000);
+        }
+
+        .segment.audio {
+            background: linear-gradient(90deg, #00e5ff, #00b0ff);
+        }
+
+        .segment.text {
+            background: linear-gradient(90deg, #00e676, #00c853);
+        }
+
+        .vfx-indicator {
+            position: absolute;
+            top: 2px;
+            right: 4px;
+            font-size: 10px;
+            color: rgba(255, 255, 255, 0.9);
+            text-shadow: 0 0 4px rgba(0, 0, 0, 1);
+        }
+
+        .transition-marker {
+            position: absolute;
+            right: 0;
+            top: 0;
+            bottom: 0;
+            width: 8px;
+            background: #ffd600;
+            clip-path: polygon(100% 0, 0 50%, 100% 100%);
+            z-index: 10;
+        }
+
+        /* Playhead */
+        .playhead {
+            position: absolute;
+            top: 20px;
+            bottom: 0;
+            width: 2px;
+            background: #fff;
+            box-shadow: 0 0 10px #7c4dff, 0 0 20px #7c4dff;
+            z-index: 100;
+            pointer-events: none;
+            display: none;
+        }
+
+        .time-display {
+            font-family: 'Outfit';
+            font-size: 14px;
+            color: var(--secondary-accent);
+            background: rgba(0, 0, 0, 0.3);
+            padding: 4px 12px;
+            border-radius: 20px;
+            border: 1px solid rgba(0, 229, 255, 0.2);
+        }
+
+        .btn-play {
+            background: linear-gradient(135deg, #7c4dff, #512da8);
+            padding: 10px 24px;
+        }
+
+        .btn-play.playing {
+            background: #ff5252;
+        }
+
+        .audit-table th {
+            text-align: left;
+            font-size: 12px;
+            color: var(--text-secondary);
+            padding: 12px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .audit-table td {
+            padding: 12px;
+            font-size: 13px;
+            border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+        }
+
+        .status-badge {
+            padding: 4px 8px;
+            border-radius: 6px;
+            font-size: 10px;
+            font-weight: 700;
+        }
+
+        .status-ok {
+            background: rgba(0, 230, 118, 0.15);
+            color: var(--success);
+        }
+
+        .status-fail {
+            background: rgba(255, 82, 82, 0.15);
+            color: var(--error);
+        }
+
+        .tool-panel {
+            background: rgba(124, 77, 255, 0.1);
+            border-radius: 16px;
+            padding: 15px;
+            margin: 10px 12px;
+            border: 1px solid rgba(124, 77, 255, 0.2);
+        }
+
+        .tool-title {
+            font-size: 13px;
+            font-weight: 700;
+            margin-bottom: 10px;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .tool-input {
+            width: 100%;
+            background: rgba(0, 0, 0, 0.3);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 8px;
+            color: white;
+            font-size: 12px;
+            margin-bottom: 10px;
+        }
+
+        .btn-tool {
+            width: 100%;
+            background: var(--accent-color);
+            border: none;
+            color: white;
+            padding: 8px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 600;
+            cursor: pointer;
+        }
+
+        .btn-tool:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 10px;
+        }
+
+        /* Animation */
+        @keyframes fadeIn {
+            from {
+                opacity: 0;
+                transform: translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .animate-in {
+            animation: fadeIn 0.4s ease forwards;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="sidebar">
+        <div class="sidebar-header">
+            <div class="logo">JianYing Insight</div>
+            <p style="font-size: 11px; color: var(--text-secondary); margin-top: 4px;">Premium AI Editing Monitor</p>
+        </div>
+
+        <div class="tool-panel">
+            <div class="tool-title">🎥 H5 动效录制助手</div>
+            <input type="text" id="recordUrl" class="tool-input" placeholder="输入 H5 页面网址 (http://...)">
+            <button id="recordBtn" class="btn-tool" onclick="runWebRecord()">开始录制为素材</button>
+            <div id="recordStatus" style="font-size:10px; color:var(--text-secondary); margin-top:8px; display:none;">
+            </div>
+        </div>
+
+        <div class="tool-panel" style="background: rgba(0, 229, 255, 0.05); border-color: rgba(0, 229, 255, 0.2);">
+            <div class="tool-title">🖥️ 屏幕录制助手</div>
+            <p style="font-size:10px; color:var(--text-secondary); margin-bottom:10px;">支持智能缩放记录，自动生成剪映草稿</p>
+            <button id="screenRecordBtn" class="btn-tool" style="background: var(--secondary-accent); color: #0b0e14;"
+                onclick="startScreenRecorder()">启动录屏助手</button>
+        </div>
+
+        <div class="project-list" id="projectList">
+            <!-- Loading... -->
+        </div>
+        <div class="sidebar-footer">
+            <button class="btn-exit" onclick="exitApp()">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"
+                    stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"></path>
+                    <polyline points="16 17 21 12 16 7"></polyline>
+                    <line x1="21" y1="12" x2="9" y2="12"></line>
+                </svg>
+                退出并关闭服务
+            </button>
+        </div>
+    </div>
+
+    <div class="content-layout">
+        <!-- 中间：核心预览与监视区域 -->
+        <div class="monitor-area animate-in" style="animation-delay: 0.1s;">
+            <div class="player-section">
+                <div style="display:flex; justify-content:space-between; align-items:center;">
+                    <div style="font-family: 'Outfit'; font-weight:700; font-size:18px; color:var(--text-primary);">
+                        素材预览监视器</div>
+                    <div id="controls" style="display:flex; gap:12px; align-items:center;">
+                        <span class="time-display" id="currentTime">0.00s</span>
+                        <button class="btn-play" id="playBtn" onclick="togglePlayback()">▶ 播放时间轴</button>
+                    </div>
+                </div>
+                <div class="player-card" id="playerContainer">
+                    <div class="player-placeholder" id="noMedia">请在下方时间轴中选择片段或点击播放</div>
+                    <video id="previewVideo" controls autoplay muted></video>
+                    <img id="previewImage" src="" alt="预览图">
+                </div>
+            </div>
+
+            <div class="timeline-container">
+                <div class="section-header">
+                    <h2>时间轴可视化 (Timeline)</h2>
+                    <div id="actionButtons"></div>
+                </div>
+
+                <div id="timelineVisual" class="timeline-visual">
+                    <div id="playhead" class="playhead"></div>
+                    <div id="tracksContainer">
+                        <div style="text-align: center; padding: 100px; color: var(--text-secondary);">
+                            请在左侧选择一个项目进行深度分析
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 右侧：状态与属性面板 -->
+        <div class="info-side animate-in" style="animation-delay: 0.2s;">
+            <div style="font-family: 'Outfit'; font-weight:700; font-size:18px; margin-bottom:10px;">状态信息</div>
+
+            <div class="stats-vertical">
+                <div class="card">
+                    <div class="card-label">当前草稿</div>
+                    <div class="card-value" id="statName" style="font-size:18px; word-break:break-all;">未选择项目</div>
+                </div>
+                <div class="card">
+                    <div class="card-label">项目总时长</div>
+                    <div class="card-value" id="statDuration" style="font-size:24px;">00:00:00</div>
+                </div>
+                <div class="card">
+                    <div class="card-label">素材健康度</div>
+                    <div class="card-value" id="statStatus" style="font-size:20px;">--</div>
+                </div>
+            </div>
+
+            <div class="card" id="segmentInfo" style="display:none; margin-top:10px;">
+                <div class="card-label">当前片段详情</div>
+                <div id="segDetailName" style="font-weight:700; margin-top:10px; color:var(--accent);">--</div>
+                <div id="segDetailPath"
+                    style="font-size:11px; color:var(--text-secondary); word-break: break-all; margin-top:8px; background:rgba(0,0,0,0.2); padding:8px; border-radius:8px;">
+                    --</div>
+            </div>
+
+            <div id="auditSection" class="audit-section" style="display: none;">
+                <div class="card-label">素材审计清单</div>
+                <div style="overflow-x:auto; background:rgba(0,0,0,0.2); border-radius:12px; margin-top:10px;">
+                    <table class="audit-table">
+                        <thead>
+                            <tr>
+                                <th>段名</th>
+                                <th>状态</th>
+                            </tr>
+                        </thead>
+                        <tbody id="auditList"></tbody>
+                    </table>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        let currentProjectData = null;
+        let isPlaying = false;
+        let playbackTime = 0;
+        let playbackInterval = null;
+        let pxPerSec = 50;
+        let lastPlayedSeg = null;
+
+        async function init() {
+            const resp = await fetch('/api/drafts');
+            const data = await resp.json();
+
+            const list = document.getElementById('projectList');
+            list.innerHTML = '';
+
+            data.drafts.forEach(d => {
+                const item = document.createElement('div');
+                item.className = 'project-item';
+                item.innerHTML = `
+                    <div class="project-name">${d.name}</div>
+                    <div class="project-meta">Updated: ${new Date(d.mtime * 1000).toLocaleString()}</div>
+                `;
+                item.onclick = () => loadProject(d.name, item);
+                list.appendChild(item);
+            });
+        }
+
+        async function loadProject(name, element) {
+            // UI 切换
+            document.querySelectorAll('.project-item').forEach(i => i.classList.remove('active'));
+            element.classList.add('active');
+
+            // 获取详情
+            document.getElementById('tracksContainer').innerHTML = '<div style="text-align:center; padding:50px;">正在深度分析工程结构...</div>';
+
+            try {
+                const resp = await fetch(`/api/draft/${encodeURIComponent(name)}`);
+                if (!resp.ok) throw new Error(`HTTP 错误: ${resp.status}`);
+
+                const data = await resp.json();
+                currentProjectData = data;
+                renderProject(data);
+            } catch (e) {
+                console.error("加载失败:", e);
+                alert("加载项目元数据失败，请检查后端日志。");
+            }
+        }
+
+        function renderProject(data) {
+            // 重置播放状态
+            stopPlayback();
+            playbackTime = 0;
+            lastPlayedSeg = null;
+            updatePlayheadUI();
+
+            const stats = {
+                name: data.draft_name,
+                duration: data.report_summary.total_duration,
+                missing: data.report_summary.missing_files
+            };
+
+            document.getElementById('statName').innerText = stats.name;
+            document.getElementById('statDuration').innerText = stats.duration;
+            document.getElementById('statStatus').innerHTML = stats.missing > 0
+                ? `<span style="color:var(--error)">⚠️ ${stats.missing} 个素材缺失</span>`
+                : `<span style="color:var(--success)">✅ 素材完全健康</span>`;
+
+            // 渲染时间轴
+            const visual = document.getElementById('tracksContainer');
+            visual.innerHTML = '';
+            document.getElementById('playhead').style.display = 'block';
+
+            const totalWidth = visual.clientWidth || 1000;
+            const durationArr = stats.duration.split(':');
+            const durationSec = parseInt(durationArr[0]) * 3600 + parseInt(durationArr[1]) * 60 + parseFloat(durationArr[2]);
+            pxPerSec = (durationSec > 0) ? (totalWidth / durationSec) : 50;
+
+            data.full_timeline.forEach(track => {
+                const row = document.createElement('div');
+                row.className = 'track-row';
+                const trackTypeCn = { 'video': '视频', 'audio': '音频', 'text': '文本', 'effect': '特效' }[track.type] || track.type;
+                row.innerHTML = `<div class="track-label">${trackTypeCn}轨道 ${track.track_index + 1}</div>`;
+
+                track.segments.forEach(seg => {
+                    const start = parseFloat(seg.start);
+                    const dur = parseFloat(seg.duration);
+
+                    const el = document.createElement('div');
+                    el.className = `segment ${track.type} ${seg.status === 'MISSING' ? 'missing' : ''}`;
+                    el.style.left = (start * pxPerSec) + 'px';
+                    el.style.width = (dur * pxPerSec) + 'px';
+
+                    // 点击预览逻辑
+                    el.onclick = (e) => {
+                        e.stopPropagation();
+                        loadPreview(seg);
+                    };
+
+                    // VFX 详细 Tooltip
+                    let vfxTooltip = "";
+                    if (seg.vfx && seg.vfx.length > 0) {
+                        vfxTooltip = "\n✨ VFX / 滤镜:\n" + seg.vfx.map(v => ` - [${v.type}] ${v.name}`).join("\n");
+
+                        // 添加特效指示器 (星星)
+                        if (seg.vfx.some(v => v.type === 'effect' || v.type === 'filter')) {
+                            el.innerHTML += '<div class="vfx-indicator">✦</div>';
+                        }
+                        // 添加转场标记
+                        if (seg.vfx.some(v => v.type === 'transition')) {
+                            el.innerHTML += '<div class="transition-marker"></div>';
+                        }
+                    }
+
+                    el.title = `${seg.name} (${seg.duration})\n路径: ${seg.path || '无'}${vfxTooltip}`;
+                    const textNode = document.createTextNode(seg.name);
+                    el.appendChild(textNode);
+
+                    row.appendChild(el);
+                });
+                visual.appendChild(row);
+            });
+
+            // Render Audit Table
+            document.getElementById('auditSection').style.display = 'block';
+            const auditList = document.getElementById('auditList');
+            auditList.innerHTML = '';
+
+            data.full_timeline.forEach(track => {
+                track.segments.forEach(seg => {
+                    const tr = document.createElement('tr');
+                    tr.innerHTML = `
+                        <td>${seg.name}</td>
+                        <td>${seg.start}</td>
+                        <td style="color:var(--text-secondary); font-family:monospace; font-size:10px;">${seg.path || '--'}</td>
+                        <td><span class="status-badge ${seg.status === 'OK' ? 'status-ok' : 'status-fail'}">${seg.status === 'OK' ? '正常' : '缺失'}</span></td>
+                    `;
+                    auditList.appendChild(tr);
+                });
+            });
+
+            // Update Dynamic Action Buttons
+            const actionContainer = document.getElementById('actionButtons');
+            actionContainer.innerHTML = '';
+            if (stats.missing > 0) {
+                const fixBtn = document.createElement('button');
+                fixBtn.className = 'btn';
+                fixBtn.innerText = '💡 一键修复素材';
+                fixBtn.onclick = () => runFix(stats.name);
+                actionContainer.appendChild(fixBtn);
+            }
+        }
+
+        function loadPreview(seg) {
+            const video = document.getElementById('previewVideo');
+            const image = document.getElementById('previewImage');
+            const placeholder = document.getElementById('noMedia');
+            const info = document.getElementById('segmentInfo');
+
+            // 更新详情
+            info.style.display = 'block';
+            document.getElementById('segDetailName').innerText = seg.name;
+            document.getElementById('segDetailPath').innerText = seg.path || "No path";
+
+            if (!seg.path || seg.status === 'MISSING') {
+                video.style.display = 'none';
+                image.style.display = 'none';
+                placeholder.style.display = 'block';
+                placeholder.innerText = "Material Missing (Red Path)";
+                return;
+            }
+
+            const ext = seg.path.split('.').pop().toLowerCase();
+            const mediaUrl = `/api/media?path=${encodeURIComponent(seg.path)}`;
+
+            placeholder.style.display = 'none';
+            if (['mp4', 'mov', 'webm'].includes(ext)) {
+                image.style.display = 'none';
+                video.style.display = 'block';
+                video.src = mediaUrl;
+                video.load();
+                video.play().catch(e => {
+                    console.warn("Autoplay blocked, user interaction required");
+                });
+            } else if (['jpg', 'jpeg', 'png', 'webp', 'gif'].includes(ext)) {
+                video.style.display = 'none';
+                image.style.display = 'block';
+                image.src = mediaUrl;
+            } else {
+                video.style.display = 'none';
+                image.style.display = 'none';
+                placeholder.style.display = 'block';
+                placeholder.innerText = "Unsupported Preview Format: " + ext;
+            }
+        }
+
+        function togglePlayback() {
+            if (isPlaying) stopPlayback();
+            else startPlayback();
+        }
+
+        function startPlayback() {
+            if (!currentProjectData) return;
+            isPlaying = true;
+            document.getElementById('playBtn').innerText = '⏸ Pause Timeline';
+            document.getElementById('playBtn').classList.add('playing');
+            document.getElementById('playhead').style.display = 'block';
+
+            const startTimestamp = Date.now() - (playbackTime * 1000);
+
+            playbackInterval = setInterval(() => {
+                playbackTime = (Date.now() - startTimestamp) / 1000;
+
+                // 检查是否结束
+                const durationArr = currentProjectData.report_summary.total_duration.split(':');
+                const totalSec = parseInt(durationArr[0]) * 3600 + parseInt(durationArr[1]) * 60 + parseInt(durationArr[2]);
+
+                if (playbackTime >= totalSec) {
+                    stopPlayback();
+                    playbackTime = totalSec;
+                    updatePlayheadUI();
+                    return;
+                }
+
+                updatePlayheadUI();
+                autoSwitchMedia();
+            }, 50);
+        }
+
+        function stopPlayback() {
+            isPlaying = false;
+            clearInterval(playbackInterval);
+            document.getElementById('playBtn').innerText = '▶ Play Timeline';
+            document.getElementById('playBtn').classList.remove('playing');
+        }
+
+        function updatePlayheadUI() {
+            const head = document.getElementById('playhead');
+            const timeLabel = document.getElementById('currentTime');
+            if (head) head.style.left = (playbackTime * pxPerSec) + 'px';
+            if (timeLabel) timeLabel.innerText = playbackTime.toFixed(2) + 's';
+        }
+
+        function autoSwitchMedia() {
+            if (!currentProjectData) return;
+
+            // 找到包含当前时间的第一个视频轨道片段
+            let activeSeg = null;
+            const videoTrack = currentProjectData.full_timeline.find(t => t.type === 'video');
+
+            if (videoTrack) {
+                activeSeg = videoTrack.segments.find(seg => {
+                    const start = parseFloat(seg.start);
+                    const dur = parseFloat(seg.duration);
+                    return playbackTime >= start && playbackTime < (start + dur);
+                });
+            }
+
+            if (activeSeg && activeSeg !== lastPlayedSeg) {
+                lastPlayedSeg = activeSeg;
+                loadPreview(activeSeg);
+            }
+        }
+
+        async function runFix(name) {
+            const root = prompt("Enter the local folder path to search for missing assets:");
+            if (!root) return;
+
+            const resp = await fetch('/api/reconnect', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: name, asset_root: root })
+            });
+            const data = await resp.json();
+            if (data.status === 'success') {
+                alert(`Successfully reconnected ${data.fixed_count} assets!`);
+                // Reload
+                const activeItem = document.querySelector('.project-item.active');
+                if (activeItem) activeItem.click();
+            } else {
+                alert("Fix failed: " + data.message);
+            }
+        }
+
+        async function runWebRecord() {
+            const urlInput = document.getElementById('recordUrl');
+            const btn = document.getElementById('recordBtn');
+            const status = document.getElementById('recordStatus');
+
+            const url = urlInput.value.trim();
+            if (!url) {
+                alert("请输入有效的 H5 网址");
+                return;
+            }
+
+            btn.disabled = true;
+            btn.innerText = "录制中 (请稍候)...";
+            status.style.display = 'block';
+            status.innerText = "⏳ 正在启动浏览器并捕获动效...";
+
+            try {
+                const resp = await fetch('/api/record', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ url: url })
+                });
+                const data = await resp.json();
+
+                if (data.status === 'success') {
+                    status.innerHTML = `<span style="color:var(--success)">✅ 录制成功！已保存至 video_cache 目录</span>`;
+                    alert(data.message);
+                } else {
+                    status.innerHTML = `<span style="color:var(--error)">❌ 录制失败: ${data.message}</span>`;
+                }
+            } catch (e) {
+                status.innerHTML = `<span style="color:var(--error)">❌ 网络错误: ${e.message}</span>`;
+            } finally {
+                btn.disabled = false;
+                btn.innerText = "开始录制为素材";
+            }
+        }
+
+        async function startScreenRecorder() {
+            try {
+                const resp = await fetch('/api/recorder/start', { method: 'POST' });
+                const data = await resp.json();
+                if (data.status === 'success') {
+                    alert(data.message);
+                } else {
+                    alert("启动失败: " + data.message);
+                }
+            } catch (e) {
+                alert("请求错误: " + e.message);
+            }
+        }
+
+        async function exitApp() {
+            if (!confirm("确定要退出并彻底结束服务吗？")) return;
+
+            try {
+                const resp = await fetch('/api/shutdown', { method: 'POST' });
+                const data = await resp.json();
+                document.body.innerHTML = `
+                    <div style="height:100vh; display:flex; flex-direction:column; align-items:center; justify-content:center; text-align:center; background:#0b0e14; color:white; font-family:sans-serif;">
+                        <div style="font-size:60px; margin-bottom:20px;">👋</div>
+                        <h1 style="margin-bottom:10px;">服务已安全关闭</h1>
+                        <p style="color:#94a3b8;">您可以手动关闭此浏览器标签页了。</p>
+                    </div>
+                `;
+                setTimeout(() => { window.close(); }, 2000);
+            } catch (e) {
+                console.error("Shutdown failed:", e);
+                alert("关闭失败，请尝试在任务管理器中结束进程。");
+            }
+        }
+    </script>
+</body>
+
+</html>

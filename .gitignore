@@ -1,0 +1,77 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+.venv/
+workspace/
+.env
+
+# PyInstaller
+#  Usually these files are written by a python script, before PyInstaller builds the exe, so as to inject date/other infos into it.
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+.hypothesis/
+.pytest_cache/
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Build and Dist
+build/
+dist/
+
+# Project Specific - Media and Large files
+video_cache/
+demo_output/
+*.mp4
+*.mov
+*.avi
+*.wmv
+*.mkv
+*.flv
+*.png
+*.jpg
+*.jpeg
+*.gif
+
+# Project Specific - Template and Data
+杭州森泊酒店/杭州开元森泊素材/
+杭州森泊酒店/杭州开元森泊成片/
+杭州森泊酒店/杭州森泊工程模版/
+profiles/*.json
+!profiles/default.json
+ui_tree*.txt
+@AutomationLog.txt
+
+# Editor / IDE
+.vscode/
+.agent/
+.claude/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
