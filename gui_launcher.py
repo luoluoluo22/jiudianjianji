@@ -962,14 +962,22 @@ class App:
         self.single_path_frame.pack(fill="x", pady=5)
         tk.Label(self.single_path_frame, text="客户素材文件夹:", font=self.label_font, bg="#f5f5f5").pack(side="left")
         self.path_var = tk.StringVar(value=self.last_source_dir)
-        tk.Entry(self.single_path_frame, textvariable=self.path_var, font=self.label_font).pack(side="left", fill="x", expand=True, padx=10)
+        self.path_entry = tk.Entry(self.single_path_frame, textvariable=self.path_var, font=self.label_font)
+        self.path_entry.pack(side="left", fill="x", expand=True, padx=10)
+        # 绑定即时更新
+        self.path_entry.bind("<Return>", lambda e: self._update_name_preview())
+        self.path_entry.bind("<FocusOut>", lambda e: self._update_name_preview())
         tk.Button(self.single_path_frame, text="选择客户素材", command=self.select_folder, bg="#3498db", fg="white").pack(side="right")
         
         # 批量模式路径选择器 (初始隐藏)
         self.batch_path_frame = tk.Frame(f, bg="#f5f5f5")
         tk.Label(self.batch_path_frame, text="批量素材根目录:", font=self.label_font, bg="#f5f5f5").pack(side="left")
         self.batch_path_var = tk.StringVar(value=self.last_batch_root)
-        tk.Entry(self.batch_path_frame, textvariable=self.batch_path_var, font=self.label_font).pack(side="left", fill="x", expand=True, padx=10)
+        self.batch_path_entry = tk.Entry(self.batch_path_frame, textvariable=self.batch_path_var, font=self.label_font)
+        self.batch_path_entry.pack(side="left", fill="x", expand=True, padx=10)
+        # 绑定即时更新
+        self.batch_path_entry.bind("<Return>", lambda e: self._discover_and_show_clients())
+        self.batch_path_entry.bind("<FocusOut>", lambda e: self._discover_and_show_clients())
         tk.Button(self.batch_path_frame, text="选择根目录", command=self.select_batch_folder, bg="#8e44ad", fg="white").pack(side="right", padx=5)
         tk.Button(self.batch_path_frame, text="🔍 探测", command=self._discover_and_show_clients, bg="#27ae60", fg="white").pack(side="right")
         
