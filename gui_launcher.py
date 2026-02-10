@@ -153,6 +153,11 @@ class App:
             self.is_batch_mode = False # 记忆：是否勾选了批量模式
             self.last_batch_root = ""  # 记忆：上一次使用的批量根目录
             self.templates_selections = {} # {template_name: [selected_ids]}
+            
+            # --- 新增：Quicker 导出配置 ---
+            self.use_quicker = False
+            self.quicker_action_id = "ef7ec6e0-884c-472c-8834-411c6097f793"
+            self.quicker_exe_path = r"C:\Program Files\Quicker\QuickerStarter.exe"
     
             # 2. 从文件加载覆盖
             print(f"[DEBUG] Loading config from: {self.config_path}")
@@ -188,6 +193,10 @@ class App:
                         self.templates_selections = copy.deepcopy(config_data.get("templates_selections", {}))
                         if "ai_prompt" in config_data:
                             self.ai_prompt = config_data["ai_prompt"]
+                        
+                        # 加载 Quicker 配置
+                        self.use_quicker = config_data.get("use_quicker", False)
+                        self.quicker_action_id = config_data.get("quicker_action_id", self.quicker_action_id)
                 except Exception as e:
                     print(f"Error reading config file: {e}")
             
@@ -387,6 +396,10 @@ class App:
                 self.folder_fmt_var.set(self.folder_format)
                 self.draft_name_fmt_var.set(self.draft_name_format)
                 
+                # 同步 Quicker 变量
+                self.use_quicker_var.set(self.use_quicker)
+                self.quicker_id_var.set(self.quicker_action_id)
+                
                 self.batch_mode_var.set(self.is_batch_mode)
                 self.batch_path_var.set(self.last_batch_root)
                 
@@ -527,7 +540,9 @@ class App:
             "name_fmt": self.name_fmt_var.get(),
             "folder_fmt": self.folder_fmt_var.get(),
             "draft_fmt": self.draft_name_fmt_var.get(),
-            "tpl_root": self.tpl_root_var.get()
+            "tpl_root": self.tpl_root_var.get(),
+            "use_quicker": self.use_quicker_var.get(),
+            "quicker_id": self.quicker_id_var.get()
         }
         
         self.task_queue.append(task)
@@ -1082,6 +1097,23 @@ class App:
         self.output_name_var = tk.StringVar()
         tk.Entry(preview_frame, textvariable=self.output_name_var, font=self.log_font, fg="#16a085", state="readonly", bd=0, bg="#f5f5f5").pack(fill="x")
 
+        # --- 新增：Quicker 导出设置区 ---
+        q_frame = tk.LabelFrame(f, text=" ⚡ Quicker 强化导出 (解决 UI 卡死) ", font=self.label_font, padx=15, pady=10, fg="#8e44ad")
+        q_frame.pack(fill="x", pady=5)
+        
+        row_q1 = tk.Frame(q_frame)
+        row_q1.pack(fill="x")
+        self.use_quicker_var = tk.BooleanVar(value=self.use_quicker)
+        tk.Checkbutton(row_q1, text="启用 Quicker 动作接手导出 (推荐)", variable=self.use_quicker_var, 
+                       font=("Microsoft YaHei", 9, "bold"), fg="#8e44ad", command=self._save_config_immediate).pack(side="left")
+        
+        row_q2 = tk.Frame(q_frame)
+        row_q2.pack(fill="x", pady=5)
+        tk.Label(row_q2, text="动作 ID:", width=10, anchor="w").pack(side="left")
+        self.quicker_id_var = tk.StringVar(value=self.quicker_action_id)
+        tk.Entry(row_q2, textvariable=self.quicker_id_var, width=45).pack(side="left", padx=5)
+        tk.Label(row_q2, text="注: 需安装 Quicker 客户端", font=("Arial", 8), fg="gray").pack(side="left")
+
     def _init_tab_run(self):
         f = tk.Frame(self.content_container, bg="#f5f5f5")
         self.tab_frames["run"] = f
@@ -1586,6 +1618,10 @@ class App:
                 config_data["templates_selections"] = self.templates_selections
                 print(f"[DEBUG] Saving templates_selections: {self.templates_selections}")
                 
+                # 保存 Quicker 设置
+                config_data["use_quicker"] = self.use_quicker_var.get()
+                config_data["quicker_action_id"] = self.quicker_id_var.get().strip()
+                
                 with open(self.config_path, 'w', encoding='utf-8') as f:
                     json.dump(config_data, f, indent=4)
                 print(f"[SERVER LOG] Config saved successfully: {os.path.basename(self.config_path)}")
@@ -1817,6 +1853,8 @@ class App:
             target_selections = task.get('templates_selections', self.templates_selections)
             # 获取该任务要跑的所有模板名
             selected_tpls = task.get('templates', [tpl for tpl, var in self.template_checkboxes.items() if var.get()])
+            use_quicker = task.get('use_quicker', self.use_quicker_var.get())
+            quicker_id = task.get('quicker_id', self.quicker_id_var.get())
         else:
             new_model = self.model_var.get().strip()
             new_prompt_template = self.prompt_text.get("1.0", "end-1c").strip()
@@ -1828,6 +1866,8 @@ class App:
             tpl_root = self.tpl_root_var.get().strip()
             target_selections = self.templates_selections
             selected_tpls = [tpl for tpl, var in self.template_checkboxes.items() if var.get()]
+            use_quicker = self.use_quicker_var.get()
+            quicker_id = self.quicker_id_var.get()
 
         from datetime import datetime
         now = datetime.now()
@@ -2007,20 +2047,75 @@ class App:
                 if not self.is_running: break
                 self.log(f"[*] AI 分析完成，开始 UI 自动化导出: {project_name}")
                 try:
-                    captured_path = exporter.run_export(project_name)
-                    if captured_path and os.path.exists(captured_path):
-                        os.makedirs(os.path.dirname(final_dest_file), exist_ok=True)
-                        if os.path.exists(final_dest_file): os.remove(final_dest_file)
-                        shutil.move(captured_path, final_dest_file)
-                        self.log(f"✅ 交付成功! 文件已保存至:\n   {os.path.abspath(final_dest_file)}")
+                    if use_quicker:
+                        self.log(f"[*] 🚀 正在调用 Quicker 动作接手导出...")
+                        success = self._run_export_via_quicker(quicker_id, project_name, final_dest_file)
+                        if success:
+                            self.log(f"✅ Quicker 交付成功! 文件已保存至:\n   {os.path.abspath(final_dest_file)}")
+                        else:
+                            self.log(f"❌ Quicker 导出失败或超时。")
                     else:
-                        self.log(f"❌ 导出异常: 剪映导出完成后未能找到文件。")
+                        captured_path = exporter.run_export(project_name)
+                        if captured_path and os.path.exists(captured_path):
+                            os.makedirs(os.path.dirname(final_dest_file), exist_ok=True)
+                            if os.path.exists(final_dest_file): os.remove(final_dest_file)
+                            shutil.move(captured_path, final_dest_file)
+                            self.log(f"✅ 交付成功! 文件已保存至:\n   {os.path.abspath(final_dest_file)}")
+                        else:
+                            self.log(f"❌ 导出异常: 剪映导出完成后未能找到文件。")
                 except Exception as ex:
                     self.log(f"⚠️ 导出出错: {ex}")
                 finally:
                     # 每个任务完结后杀掉剪映，防止残留或干扰下一个项目
-                    try: exporter.kill_jianying()
+                    try: 
+                        if not use_quicker: # 如果用了 quicker，尽量不要暴力杀，或者由 quicker 处理
+                            exporter.kill_jianying()
                     except: pass
+
+    def _run_export_via_quicker(self, action_id, draft_name, save_path, timeout=900):
+        """
+        通过 Quicker 外部动作接手导出逻辑
+        参数格式: 草稿名|保存路径
+        """
+        import subprocess
+        quicker_exe = self.quicker_exe_path
+        if not os.path.exists(quicker_exe):
+            self.log(f"❌ 找不到 QuickerStarter.exe，请检查路径: {quicker_exe}")
+            return False
+            
+        # 统一路径格式为正斜杠，避免 Quicker 在解析参数时将反斜杠误认为转义符
+        safe_save_path = save_path.replace("\\", "/")
+        arg_str = f"{draft_name}|{safe_save_path}"
+        # 修正命令格式: runaction:ID?Args
+        cmd_arg = f"runaction:{action_id}?{arg_str}"
+        
+        try:
+            self.log(f"[*] 启动 Quicker 动作: {action_id}")
+            self.log(f"[*] 传递指令: {cmd_arg}")
+            subprocess.Popen([quicker_exe, cmd_arg])
+            
+            # 监控文件生成
+            start_time = time.time()
+            self.log("[*] 等待 Quicker 导出结果 (监控目标文件生成)...")
+            
+            while time.time() - start_time < timeout:
+                if not self.is_running: return False
+                
+                if os.path.exists(save_path):
+                    # 检查文件大小是否还在增长 (判定是否导出结束)
+                    last_size = os.path.getsize(save_path)
+                    time.sleep(3)
+                    if os.path.exists(save_path) and os.path.getsize(save_path) == last_size and last_size > 0:
+                        self.log(f"✅ 检测到文件生成且大小趋于稳定，导出完成。")
+                        return True
+                
+                time.sleep(5)
+            
+            self.log(f"❌ 等待 Quicker 导出超时 ({timeout}s)")
+            return False
+        except Exception as e:
+            self.log(f"❌ 调用 Quicker 失败: {e}")
+            return False
 
 if __name__ == "__main__":
     root = tk.Tk()
